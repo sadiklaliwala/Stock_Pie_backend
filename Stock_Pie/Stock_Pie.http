@@ -1,0 +1,6 @@
+@Stock_Pie_HostAddress = http://localhost:5173
+
+GET {{Stock_Pie_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
