@@ -59,12 +59,13 @@ builder.Services.AddHttpClient<ICoinService, CoinService>(c =>
     );
 });
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:5174" };
 //Cors Policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("vite", policy =>
     {
-        policy.WithOrigins("http://localhost:5174")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
