@@ -67,6 +67,12 @@ builder.Services.AddHttpClient<ICoinService, CoinService>(c =>
         "User-Agent",
         "StockPieApp/1.0 (ASP.NET Core; contact: sadiklaliwala@email.com)"
     );
+
+    var apiKey = builder.Configuration["CoinGecko:ApiKey"] ?? "CG-MmJhR9QuXH2eDQKZk5KXG5np";
+    if (!string.IsNullOrEmpty(apiKey))
+    {
+        c.DefaultRequestHeaders.Add("x-cg-demo-api-key", apiKey);
+    }
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:5174" };
