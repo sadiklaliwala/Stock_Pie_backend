@@ -74,7 +74,7 @@ namespace Stock_Pie.Application.Services
         public async Task<WatchList> FindById(Guid id)
         {
             return await _repo.GetByIdAsync(id)
-                ?? throw new InvalidOperationException("WatchList not found");
+                ?? throw new KeyNotFoundException("WatchList not found");
         }
 
         public async Task<Coin> AddItemToWatchListAsync(Coin coin, Guid userId)

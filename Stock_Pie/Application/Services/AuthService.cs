@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Stock_Pie.Application.Dto;
@@ -22,11 +22,13 @@ namespace Stock_Pie.Application.Services
 
         public async Task<(string AccessToken, string RefreshToken)> LoginAsync(UserLoginDto dto)
         {
-            var user = await _db.Users.SingleOrDefaultAsync(u => u.Email == dto.Email) ?? throw new InvalidOperationException("Invalid credentials");
-            if (user.PasswordHash == null) throw new InvalidOperationException("User has no local password");
+            var user = await _db.Users.SingleOrDefaultAsync(u => u.Email == dto.Email)
+    ?? throw new UnauthorizedAccessException("Invalid email or password.");
+
+            if (user.PasswordHash == null) throw new NotSupportedException("This account uses social login.");
 
             var ok = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
-            if (!ok) throw new InvalidOperationException("Invalid credentials");
+            if (!ok) throw new UnauthorizedAccessException("Invalid email or password.");
 
             var access = _jwt.GenerateAccessToken(user.Id, user.Email);
             var (rtPlain, rtHash) = _rt.GenerateRefreshToken();
@@ -41,9 +43,11 @@ namespace Stock_Pie.Application.Services
         public async Task<(string AccessToken, string RefreshToken)> RefreshAsync(string refreshToken)
         {
             var hash = _rt.HashToken(refreshToken);
-            var user = await _db.Users.SingleOrDefaultAsync(u => u.RefreshTokenHash == hash) ?? throw new InvalidOperationException("Invalid refresh token");
-            if (!user.RefreshTokenExpiryTime.HasValue || user.RefreshTokenExpiryTime.Value < DateTime.UtcNow) throw new InvalidOperationException("Refresh token expired");
+            var user = await _db.Users.SingleOrDefaultAsync(u => u.RefreshTokenHash == hash)
+                ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
+            if (!user.RefreshTokenExpiryTime.HasValue || user.RefreshTokenExpiryTime.Value < DateTime.UtcNow)
+                throw new UnauthorizedAccessException("Refresh token expired.");
             // Rotate
             var access = _jwt.GenerateAccessToken(user.Id, user.Email);
             var (newPlain, newHash) = _rt.GenerateRefreshToken();
@@ -65,8 +69,8 @@ namespace Stock_Pie.Application.Services
 
         public async Task<(string AccessToken, string RefreshToken)> LoginWithEmailAsync(string email)
         {
-            var user = await _db.Users.SingleOrDefaultAsync(u => u.Email == email) ?? throw new InvalidOperationException("Invalid user");
-
+            var user = await _db.Users.SingleOrDefaultAsync(u => u.Email == email)
+     ?? throw new KeyNotFoundException("User not found.");
             var access = _jwt.GenerateAccessToken(user.Id, user.Email);
             var (rtPlain, rtHash) = _rt.GenerateRefreshToken();
             user.RefreshTokenHash = rtHash;
@@ -80,14 +84,12 @@ namespace Stock_Pie.Application.Services
 
         public async Task<(string AccessToken, string RefreshToken)> LoginWithGoogleAsync(string idToken)
         {
-            var settings = new GoogleJsonWebSignature.ValidationSettings();
             var clientId = _config["Google:ClientId"];
             if (string.IsNullOrEmpty(clientId))
-            {
-                throw new KeyNotFoundException("Google Client id is Not Found");
-            }
+                throw new InvalidOperationException("Google:ClientId is not configured."); // config issue, not a missing key
 
-                settings.Audience = [clientId];
+            var settings = new GoogleJsonWebSignature.ValidationSettings { Audience = [clientId] };
+
             GoogleJsonWebSignature.Payload payload;
             try
             {
@@ -95,7 +97,7 @@ namespace Stock_Pie.Application.Services
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException("Invalid Google id token", ex);
+                throw new UnauthorizedAccessException("Invalid Google token.", ex); // auth failure → 401
             }
 
             var email = payload.Email;

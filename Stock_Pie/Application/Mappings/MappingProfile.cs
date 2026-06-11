@@ -8,7 +8,9 @@ namespace Stock_Pie.Application.Mappings
     {
         public MappingProfile()
         {
-            CreateMap<User, UserDto>();
+            CreateMap<User, UserDto>()
+                .ForMember(dest => dest.BankAccountLast4, opt => opt.MapFrom(src => src.BankAccountLast4));
+
             CreateMap<Transaction, TransactionDto>();
             CreateMap<Portfolio, PortfolioResponseDto>();
             CreateMap<Coin, CoinSummaryDto>();

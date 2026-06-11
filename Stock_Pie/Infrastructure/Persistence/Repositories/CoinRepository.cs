@@ -28,5 +28,11 @@ namespace Stock_Pie.Infrastructure.Persistence.Repositories
         {
             return await _db.SaveChangesAsync();
         }
+
+        public async Task UpdateAsync(Coin coin)
+        {
+            _db.Coins.Update(coin);
+            await _db.SaveChangesAsync();
+        }
     }
 }

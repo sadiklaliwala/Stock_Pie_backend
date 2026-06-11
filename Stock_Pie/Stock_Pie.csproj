@@ -28,4 +28,7 @@
 		<PackageReference Include="Google.Apis.Auth" Version="1.63.0" />
 		<PackageReference Include="Stripe.net" Version="44.0.0" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Middleware\" />
+	</ItemGroup>
 </Project>

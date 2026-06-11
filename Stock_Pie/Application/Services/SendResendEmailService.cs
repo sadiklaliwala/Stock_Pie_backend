@@ -40,11 +40,11 @@ namespace Stock_Pie.Application.Services
 
 
             var resp = await _http.PostAsync("emails", content);
-            
+
             if (!resp.IsSuccessStatusCode)
             {
                 var txt = await resp.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Resend email failed: {resp.StatusCode} {txt}");
+                throw new HttpRequestException($"Resend email failed: {txt}", null, resp.StatusCode);
             }
         }
     }

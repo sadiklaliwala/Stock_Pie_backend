@@ -1,9 +1,14 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+// add using
+using Npgsql;
 using Stock_Pie.Api.Responses;
 using System.Text.Json;
 
-namespace Stock_Pie.Middleware
+// in GetExceptionDetails
+
+namespace Stock_Pie.Api.Middleware
 {
     public class GlobalExceptionMiddleWare(
         IProblemDetailsService problemDetailsService,
@@ -27,7 +32,7 @@ namespace Stock_Pie.Middleware
                 Instance = httpContext.Request.Path,
                 Type = $"https://httpstatuses.com/{statusCode}"
             };
-
+            httpContext.Response.StatusCode = statusCode;
             // Try write using standard problem details pipeline
             var wrote = await problemDetailsService.TryWriteAsync(new()
             {
@@ -61,7 +66,9 @@ namespace Stock_Pie.Middleware
                 UnauthorizedAccessException => (StatusCodes.Status403Forbidden, "Access denied"),
                 ArgumentException => (StatusCodes.Status400BadRequest, "Invalid request"),
                 InvalidOperationException => (StatusCodes.Status400BadRequest, "Invalid operation"),
-
+                // in GetExceptionDetails
+                NpgsqlException => (StatusCodes.Status503ServiceUnavailable, "Database unavailable."),
+                DbUpdateException => (StatusCodes.Status503ServiceUnavailable, "Database unavailable."),
                 _ => (StatusCodes.Status500InternalServerError, "Internal server error")
             };
 

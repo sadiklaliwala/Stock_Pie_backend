@@ -23,11 +23,11 @@ namespace Stock_Pie.Application.Services
 
         public async Task<Wallet> CreateWalletForUserAsync(Guid userId, decimal initialBalance = 0)
         {
-            var user = await _userRepo.GetByIdAsync(userId);
-            if (user == null) throw new InvalidOperationException("User not found");
-            var existing = await _repo.GetByUserIdAsync(userId);
-            if (existing != null) throw new InvalidOperationException("Wallet already exists for user");
+            var user = await _userRepo.GetByIdAsync(userId)
+    ?? throw new KeyNotFoundException($"User '{userId}' not found.");
 
+            var existing = await _repo.GetByUserIdAsync(userId);
+            if (existing != null) throw new InvalidOperationException("Wallet already exists for this user.");
             var wallet = new Wallet { UserId = userId, Balance = initialBalance, CreatedAt = DateTime.UtcNow };
             await _repo.AddAsync(wallet);
             await _repo.SaveChangesAsync();
@@ -51,8 +51,8 @@ namespace Stock_Pie.Application.Services
 
         public async Task<Wallet> AddBalanceAsync(Guid userId, decimal amount)
         {
-            if (amount <= 0) throw new InvalidOperationException("Amount must be positive");
-            var wallet = await _repo.GetByUserIdAsync(userId) ?? throw new InvalidOperationException("Wallet not found");
+            if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amount must be greater than zero.");
+            var wallet = await _repo.GetByUserIdAsync(userId) ?? throw new KeyNotFoundException($"Wallet not found for user '{userId}'.");
             wallet.Balance += amount;
             await _repo.UpdateAsync(wallet);
             await _repo.SaveChangesAsync();
@@ -75,11 +75,10 @@ namespace Stock_Pie.Application.Services
 
         public async Task<Wallet> WalletToWalletTransferAsync(Guid senderUserId, Guid receiverWalletId, decimal amount)
         {
-            if (amount <= 0) throw new InvalidOperationException("Amount must be positive");
-            var senderWallet = await _repo.GetByUserIdAsync(senderUserId) ?? throw new InvalidOperationException("Sender wallet not found");
-            var receiverWallet = await _repo.GetByIdAsync(receiverWalletId) ?? throw new InvalidOperationException("Receiver wallet not found");
-            if (senderWallet.Balance < amount) throw new InvalidOperationException("Insufficient balance");
-
+            if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amount must be greater than zero.");
+            var senderWallet = await _repo.GetByUserIdAsync(senderUserId) ?? throw new KeyNotFoundException($"Wallet not found for user '{senderUserId}'.");
+            var receiverWallet = await _repo.GetByIdAsync(receiverWalletId) ?? throw new KeyNotFoundException($"Wallet '{receiverWalletId}' not found.");
+            if (senderWallet.Balance < amount) throw new InvalidOperationException("Insufficient balance.");
             var transferId = Guid.NewGuid();
 
             senderWallet.Balance -= amount;
@@ -120,9 +119,8 @@ namespace Stock_Pie.Application.Services
         public async Task<Wallet> PayOrderPaymentAsync(Order order, Guid userId)
         {
             if (order == null) throw new ArgumentNullException(nameof(order));
-            var wallet = await _repo.GetByUserIdAsync(userId) ?? throw new InvalidOperationException("Wallet not found");
-            if (wallet.Balance < order.Price) throw new InvalidOperationException("Insufficient funds to pay order");
-
+            var wallet = await _repo.GetByUserIdAsync(userId) ?? throw new KeyNotFoundException($"Wallet not found for user '{userId}'.");
+            if (wallet.Balance < order.Price) throw new InvalidOperationException("Insufficient funds.");
             wallet.Balance -= order.Price;
             await _repo.UpdateAsync(wallet);
             await _repo.SaveChangesAsync();

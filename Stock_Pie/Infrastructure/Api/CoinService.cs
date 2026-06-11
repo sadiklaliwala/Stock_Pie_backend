@@ -48,7 +48,7 @@ namespace Stock_Pie.Infrastructure.Api
             if (!resp.IsSuccessStatusCode)
             {
                 var msg = await resp.Content.ReadAsStringAsync();
-                throw new Exception($"CoinGecko Error: {resp.StatusCode} - {msg}");
+                throw new HttpRequestException($"CoinGecko error: {msg}", null, resp.StatusCode);
             }
 
             var stream = await resp.Content.ReadAsStreamAsync();
@@ -80,73 +80,95 @@ namespace Stock_Pie.Infrastructure.Api
             if (_cache.TryGetValue(cacheKey, out string? cached) && cached != null)
                 return cached;
 
-            try
+            var url = $"coins/{coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false";
+            var resp = await _http.GetAsync(url);
+
+            if (!resp.IsSuccessStatusCode)
             {
-                var url = $"coins/{coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false";
-                var resp = await _http.GetAsync(url);
-                resp.EnsureSuccessStatusCode();
-                var json = await resp.Content.ReadAsStringAsync();
-
-                var doc = JsonSerializer.Deserialize<JsonElement>(json, _jsonOptions);
-                var coin = new Coin
-                {
-                    Id = doc.GetProperty("id").GetString(),
-                    Symbol = doc.GetProperty("symbol").GetString(),
-                    Name = doc.GetProperty("name").GetString(),
-                    Image = doc.GetProperty("image").GetProperty("large").GetString(),
-                    CurrentPrice = GetDecimalOrNull(doc, "market_data", "current_price", "usd") ?? 0,
-                    MarketCap = GetLongOrNull(doc, "market_data", "market_cap", "usd") ?? 0,
-                    MarketCapRank = doc.TryGetProperty("market_cap_rank", out var mcr) && mcr.ValueKind != JsonValueKind.Null
-                        ? mcr.GetInt32() : 0,
-                    FullyDilutedValuation = GetLongOrNull(doc, "market_data", "fully_diluted_valuation", "usd"),
-                    TotalVolume = GetLongOrNull(doc, "market_data", "total_volume", "usd") ?? 0,
-                    High24h = GetDecimalOrNull(doc, "market_data", "high_24h", "usd") ?? 0,
-                    Low24h = GetDecimalOrNull(doc, "market_data", "low_24h", "usd") ?? 0,
-                    PriceChange24h = GetDecimalOrNull(doc, "market_data", "price_change_24h") ?? 0,
-                    PriceChangePercentage24h = GetDecimalOrNull(doc, "market_data", "price_change_percentage_24h") ?? 0,
-                    MarketCapChange24h = GetLongOrNull(doc, "market_data", "market_cap_change_24h") ?? 0,
-                    MarketCapChangePercentage24h = GetDecimalOrNull(doc, "market_data", "market_cap_change_percentage_24h") ?? 0,
-                    CirculatingSupply = GetDecimalOrNull(doc, "market_data", "circulating_supply") ?? 0,
-                    TotalSupply = GetDecimalOrNull(doc, "market_data", "total_supply"),
-                    MaxSupply = GetDecimalOrNull(doc, "market_data", "max_supply"),
-                    Ath = GetDecimalOrNull(doc, "market_data", "ath", "usd") ?? 0,
-                    AthChangePercentage = GetDecimalOrNull(doc, "market_data", "ath_change_percentage", "usd") ?? 0,
-                    AthDate = GetDateTimeOrNull(doc, "market_data", "ath_date", "usd"),
-                    Atl = GetDecimalOrNull(doc, "market_data", "atl", "usd") ?? 0,
-                    AtlChangePercentage = GetDecimalOrNull(doc, "market_data", "atl_change_percentage", "usd") ?? 0,
-                    AtlDate = GetDateTimeOrNull(doc, "market_data", "atl_date", "usd"),
-                    Roi = null,
-                    LastUpdated = doc.TryGetProperty("last_updated", out var lu) && lu.ValueKind != JsonValueKind.Null
-                        ? lu.GetDateTime() : DateTime.UtcNow
-                };
-
-                var existing = await _coinRepo.GetByIdAsync(coinId);
-                if (existing == null)
-                {
-                    await _coinRepo.AddAsync(coin);
-                    await _coinRepo.SaveChangesAsync();
-                }
-
-                _cache.Set(cacheKey, json, DetailsCacheDuration);
-                return json;
+                var err = await resp.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"CoinGecko error: {err}", null, resp.StatusCode);
             }
-            catch (Exception ex)
+
+            var json = await resp.Content.ReadAsStringAsync();
+            _cache.Set(cacheKey, json, DetailsCacheDuration);
+
+            var doc = JsonSerializer.Deserialize<JsonElement>(json, _jsonOptions);
+            var coin = new Coin
             {
-                Console.WriteLine("error " + ex);
-                throw;
+                Id = doc.GetProperty("id").GetString(),
+                Symbol = doc.GetProperty("symbol").GetString(),
+                Name = doc.GetProperty("name").GetString(),
+                Image = doc.GetProperty("image").GetProperty("large").GetString(),
+                CurrentPrice = GetDecimalOrNull(doc, "market_data", "current_price", "usd") ?? 0,
+                MarketCap = GetLongOrNull(doc, "market_data", "market_cap", "usd") ?? 0,
+                MarketCapRank = doc.TryGetProperty("market_cap_rank", out var mcr) && mcr.ValueKind != JsonValueKind.Null
+                    ? mcr.GetInt32() : 0,
+                FullyDilutedValuation = GetLongOrNull(doc, "market_data", "fully_diluted_valuation", "usd"),
+                TotalVolume = GetLongOrNull(doc, "market_data", "total_volume", "usd") ?? 0,
+                High24h = GetDecimalOrNull(doc, "market_data", "high_24h", "usd") ?? 0,
+                Low24h = GetDecimalOrNull(doc, "market_data", "low_24h", "usd") ?? 0,
+                PriceChange24h = GetDecimalOrNull(doc, "market_data", "price_change_24h") ?? 0,
+                PriceChangePercentage24h = GetDecimalOrNull(doc, "market_data", "price_change_percentage_24h") ?? 0,
+                MarketCapChange24h = GetLongOrNull(doc, "market_data", "market_cap_change_24h") ?? 0,
+                MarketCapChangePercentage24h = GetDecimalOrNull(doc, "market_data", "market_cap_change_percentage_24h") ?? 0,
+                CirculatingSupply = GetDecimalOrNull(doc, "market_data", "circulating_supply") ?? 0,
+                TotalSupply = GetDecimalOrNull(doc, "market_data", "total_supply"),
+                MaxSupply = GetDecimalOrNull(doc, "market_data", "max_supply"),
+                Ath = GetDecimalOrNull(doc, "market_data", "ath", "usd") ?? 0,
+                AthChangePercentage = GetDecimalOrNull(doc, "market_data", "ath_change_percentage", "usd") ?? 0,
+                AthDate = GetDateTimeOrNull(doc, "market_data", "ath_date", "usd"),
+                Atl = GetDecimalOrNull(doc, "market_data", "atl", "usd") ?? 0,
+                AtlChangePercentage = GetDecimalOrNull(doc, "market_data", "atl_change_percentage", "usd") ?? 0,
+                AtlDate = GetDateTimeOrNull(doc, "market_data", "atl_date", "usd"),
+                Roi = null,
+                LastUpdated = doc.TryGetProperty("last_updated", out var lu) && lu.ValueKind != JsonValueKind.Null
+                    ? lu.GetDateTime() : DateTime.UtcNow
+            };
+
+            var existing = await _coinRepo.GetByIdAsync(coinId);
+            if (existing == null)
+            {
+                await _coinRepo.AddAsync(coin);
             }
+            else
+            {
+                existing.CurrentPrice = coin.CurrentPrice;
+                existing.MarketCap = coin.MarketCap;
+                existing.MarketCapRank = coin.MarketCapRank;
+                existing.FullyDilutedValuation = coin.FullyDilutedValuation;
+                existing.TotalVolume = coin.TotalVolume;
+                existing.High24h = coin.High24h;
+                existing.Low24h = coin.Low24h;
+                existing.PriceChange24h = coin.PriceChange24h;
+                existing.PriceChangePercentage24h = coin.PriceChangePercentage24h;
+                existing.MarketCapChange24h = coin.MarketCapChange24h;
+                existing.MarketCapChangePercentage24h = coin.MarketCapChangePercentage24h;
+                existing.CirculatingSupply = coin.CirculatingSupply;
+                existing.TotalSupply = coin.TotalSupply;
+                existing.MaxSupply = coin.MaxSupply;
+                existing.Ath = coin.Ath;
+                existing.AthChangePercentage = coin.AthChangePercentage;
+                existing.AthDate = coin.AthDate;
+                existing.Atl = coin.Atl;
+                existing.AtlChangePercentage = coin.AtlChangePercentage;
+                existing.AtlDate = coin.AtlDate;
+                existing.Image = coin.Image;
+                existing.LastUpdated = coin.LastUpdated;
+                await _coinRepo.UpdateAsync(existing);
+            }
+
+            await _coinRepo.SaveChangesAsync();
+            return json;
         }
-
         public async Task<Coin?> FindByIdAsync(string coinId)
         {
             var coin = await _coinRepo.GetByIdAsync(coinId);
             if (coin != null) return coin;
 
-            var details = await GetCoinDetailsAsync(coinId);
-            if (string.IsNullOrEmpty(details)) throw new Exception("No coin found");
+            await GetCoinDetailsAsync(coinId); // throws HttpRequestException on 404 already
 
-            var saved = await _coinRepo.GetByIdAsync(coinId);
-            return saved ?? throw new Exception("No coin found");
+            return await _coinRepo.GetByIdAsync(coinId)
+                ?? throw new KeyNotFoundException($"Coin '{coinId}' not found.");
         }
 
         public async Task<string> GetTop50CoinsByMarketCapRankAsync()

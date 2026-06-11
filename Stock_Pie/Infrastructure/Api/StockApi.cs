@@ -12,45 +12,24 @@ namespace Stock_Pie.Infrastructure.Api
         public StockApi(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-
-            _apiKey = configuration["StockSettings:ApiKey"] ?? "";
-            _baseUrl = configuration["StockSettings:BaseUrl"] ?? "";
-
-            if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_baseUrl))
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
+            _apiKey = configuration["StockSettings:ApiKey"] ?? throw new InvalidOperationException("StockSettings:ApiKey is not configured.");
+            _baseUrl = configuration["StockSettings:BaseUrl"] ?? throw new InvalidOperationException("StockSettings:BaseUrl is not configured.");
         }
 
         public async Task<List<StockApiDto>?> GetStockDataAsync()
         {
             var response = await _httpClient.GetAsync($"{_baseUrl}/stocks");
 
-            if (response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
             {
-                var json = await response.Content.ReadAsStringAsync();
-
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-
-                var result = JsonSerializer.Deserialize<StockApiResponse>(json, options);
-
-                return result == null ? throw new Exception("Failed to deserialize stock data.") : result.Data;
-
-                //if (result?.Data != null)
-                //{
-                //    result.Data.ForEach(stock =>
-                //    {
-                //        Console.WriteLine("name " + stock.Name);
-                //    });
-                //}
+                var err = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to fetch stock data: {err}", null, response.StatusCode);
             }
-            else
-            {
-                throw new Exception("Failed to fetch stock data. Status code: " + response.StatusCode);
-            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<StockApiResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return result?.Data ?? throw new InvalidOperationException("Failed to deserialize stock data.");
         }
 
         private static readonly Random _random = new();
@@ -70,68 +49,7 @@ namespace Stock_Pie.Infrastructure.Api
             return responsePrice;
         }
 
-        //public async Task<Dictionary<string, decimal>> GetPricesAsync(List<string> symbols)
-        //{
-        //    var symbolString = string.Join(",", symbols);
-
-        //    // ✅ Use QUOTE endpoint (important)
-        //    var url = $"{_baseUrl}/quote?symbol={symbolString}&apikey={_apiKey}";
-
-        //    var response = await _httpClient.GetAsync(url);
-
-        //    if (!response.IsSuccessStatusCode)
-        //        throw new Exception("Failed to fetch prices");
-
-        //    var json = await response.Content.ReadAsStringAsync();
-
-        //    // 🔥 STEP 1: HANDLE ERROR RESPONSE
-        //    if (json.Contains("\"code\""))
-        //    {
-        //        var error = JsonSerializer.Deserialize<ApiErrorResponse>(json);
-        //        throw new Exception($"TwelveData Error: {error?.Message}");
-        //    }
-
-        //    var options = new JsonSerializerOptions
-        //    {
-        //        PropertyNameCaseInsensitive = true
-        //    };
-
-        //    // 🔥 STEP 2: DESERIALIZE QUOTE RESPONSE
-        //    var data = JsonSerializer.Deserialize<Dictionary<string, QuoteResponse>>(json, options);
-
-        //    if (data == null)
-        //        return new Dictionary<string, decimal>();
-
-        //    // 🔥 STEP 3: SAFE PARSING
-        //    return data
-        //        .Where(x => x.Value != null && !string.IsNullOrEmpty(x.Value.Close))
-        //        .ToDictionary(
-        //            x => x.Key,
-        //            x =>
-        //            {
-        //                decimal.TryParse(x.Value.Close, out var price);
-        //                return price;
-        //            }
-        //        );
-        //}
-
-        //public async Task GetStockDataAsync()
-        //{
-        //    var response = await httpClient.GetAsync("https://api.twelvedata.com/stocks");
-
-        //    if (response.IsSuccessStatusCode)
-        //    {
-        //        var json = await response.Content.ReadAsStringAsync();
-
-        //        var stocks = JsonSerializer.Deserialize<List<StockApiDto>>(json);
-
-        //        stocks.ForEach(stock =>
-        //        {
-        //            Console.WriteLine("name" + stock.Name);
-        //        });
-
-
-        //    }
+        
     }
 }
 
