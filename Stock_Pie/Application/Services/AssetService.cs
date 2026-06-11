@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Stock_Pie.Application.Interfaces;
 using Stock_Pie.Domain.Entities;
 
@@ -45,7 +46,8 @@ namespace Stock_Pie.Application.Services
 
         public async Task<Asset> UpdateAssetAsync(Guid assetId, double quantity, double buyPrice)
         {
-            var asset = await _repo.GetByIdAsync(assetId) ?? throw new InvalidOperationException("Asset not found");
+            var asset = await _repo.GetByIdAsync(assetId)
+    ?? throw new KeyNotFoundException("Asset not found.");
             asset.Quantity = quantity;
             asset.BuyPrice = buyPrice;
             await _repo.UpdateAsync(asset);
@@ -60,7 +62,7 @@ namespace Stock_Pie.Application.Services
 
         public async Task DeleteAssetAsync(Guid assetId)
         {
-            var asset = await _repo.GetByIdAsync(assetId) ?? throw new InvalidOperationException("Asset not found");
+            var asset = await _repo.GetByIdAsync(assetId) ?? throw new KeyNotFoundException("Asset not found");
             await _repo.RemoveAsync(asset);
             await _repo.SaveChangesAsync();
         }

@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Stock_Pie.Api.Middleware;
 using Stock_Pie.Application.Interfaces;
 using Stock_Pie.Application.Mappings;
 using Stock_Pie.Application.Services;
@@ -9,7 +10,6 @@ using Stock_Pie.Infrastructure.Api;
 using Stock_Pie.Infrastructure.Persistence;
 using Stock_Pie.Infrastructure.Persistence.Repositories;
 using Stock_Pie.Infrastructure.Services;
-using Stock_Pie.Middleware;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -37,10 +37,20 @@ builder.Services.AddSwaggerGen(c =>
 //        sqloptions.CommandTimeout(300); // 5 minutes
 //    });
 //});
-
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql =>
+        {
+            npgsql.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null
+            );
+            npgsql.CommandTimeout(30);
+        }
+    )
+);
 // Add HTTP client for Resend
 builder.Services.AddHttpClient<IEmailService, SendResendEmailService>(client =>
 {
@@ -57,6 +67,12 @@ builder.Services.AddHttpClient<ICoinService, CoinService>(c =>
         "User-Agent",
         "StockPieApp/1.0 (ASP.NET Core; contact: sadiklaliwala@email.com)"
     );
+
+    var apiKey = builder.Configuration["CoinGecko:ApiKey"] ?? "CG-MmJhR9QuXH2eDQKZk5KXG5np";
+    if (!string.IsNullOrEmpty(apiKey))
+    {
+        c.DefaultRequestHeaders.Add("x-cg-demo-api-key", apiKey);
+    }
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:5174" };

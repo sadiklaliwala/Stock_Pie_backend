@@ -56,5 +56,10 @@ namespace Stock_Pie.Domain.Entities
         public Wallet? Wallet { get; set; }
 
         public ICollection<PaymentOrder> PaymentOrders { get; set; } = [];
+
+        // Minimal bank account storage: store a one-way hash and last4 for display
+        // Note: this does NOT verify ownership and should not be used for payouts.
+        public string? BankAccountHash { get; set; }
+        public string? BankAccountLast4 { get; set; }
     }
 }

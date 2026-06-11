@@ -4,6 +4,8 @@ using Stock_Pie.Application.Interfaces;
 using Stock_Pie.Domain.Entities;
 using Stock_Pie.Infrastructure.Persistence;
 using AutoMapper;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Stock_Pie.Application.Services
 {
@@ -19,6 +21,23 @@ namespace Stock_Pie.Application.Services
         private readonly IWalletService _walletService = walletService;
         private readonly IWatchlistService _watchlistService = watchlistService;
         private readonly AppDbContext _db = db;
+
+        private static string? ComputeSha256Hash(string? raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            using var sha = SHA256.Create();
+            var bytes = Encoding.UTF8.GetBytes(raw);
+            var hash = sha.ComputeHash(bytes);
+            return Convert.ToHexString(hash);
+        }
+
+        private static string? Last4(string? raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            var cleaned = raw.Trim();
+            if (cleaned.Length <= 4) return cleaned;
+            return cleaned.Substring(cleaned.Length - 4);
+        }
 
         public async Task<User> CreateUserAsync(UserRegisterDto dto)
         {
@@ -37,7 +56,9 @@ namespace Stock_Pie.Application.Services
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                     Provider = AuthProvider.Local,
                     CreatedAt = DateTime.UtcNow,
-                    IsActive = true
+                    IsActive = true,
+                    BankAccountHash = ComputeSha256Hash(dto.BankAccount),
+                    BankAccountLast4 = Last4(dto.BankAccount)
                 };
 
                 await _userRepo.AddAsync(user);
@@ -66,15 +87,30 @@ namespace Stock_Pie.Application.Services
             return await _userRepo.GetByIdAsync(id);
         }
 
-        public async Task<User?> UpdateUserAsync(Guid id, UserRegisterDto dto)
+        public async Task<User?> UpdateUserAsync(Guid id, UserUpdateDto dto)
         {
             var user = await _userRepo.GetByIdAsync(id);
-            if (user == null) return null;
+            if (user == null ) return null;
+            if(user.Email != null)
+            {
 
+            user.Email = dto.Email;
+            }
+            if(user.FullName != null)
+            {
             user.FullName = dto.FullName;
+
+            }
             if (!string.IsNullOrEmpty(dto.Password))
             {
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            }
+
+            // Update bank account if provided (null = no change, empty = clear)
+            if (dto.BankAccount != null)
+            {
+                user.BankAccountHash = ComputeSha256Hash(dto.BankAccount);
+                user.BankAccountLast4 = Last4(dto.BankAccount);
             }
 
             await _userRepo.SaveChangesAsync();

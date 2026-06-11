@@ -25,9 +25,8 @@ namespace Stock_Pie.Application.Services
 
         public async Task<Transaction> BuyAsync(Guid userId, TransactionCreateDto dto)
         {
-            if (dto.Quantity <= 0) throw new InvalidOperationException("Quantity must be greater than zero");
-            if (dto.PriceAtTransaction < 0) throw new InvalidOperationException("Price must be non-negative");
-
+            if (dto.Quantity <= 0) throw new ArgumentOutOfRangeException(nameof(dto.Quantity), dto.Quantity, "Quantity must be greater than zero.");
+            if (dto.PriceAtTransaction < 0) throw new ArgumentOutOfRangeException(nameof(dto.PriceAtTransaction), dto.PriceAtTransaction, "Price must be non-negative.");
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
@@ -58,9 +57,8 @@ namespace Stock_Pie.Application.Services
 
         public async Task<Transaction> SellAsync(Guid userId, TransactionCreateDto dto)
         {
-            if (dto.Quantity <= 0) throw new InvalidOperationException("Quantity must be greater than zero");
-            if (dto.PriceAtTransaction < 0) throw new InvalidOperationException("Price must be non-negative");
-
+            if (dto.Quantity <= 0) throw new ArgumentOutOfRangeException(nameof(dto.Quantity), dto.Quantity, "Quantity must be greater than zero.");
+            if (dto.PriceAtTransaction < 0) throw new ArgumentOutOfRangeException(nameof(dto.PriceAtTransaction), dto.PriceAtTransaction, "Price must be non-negative.");
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {

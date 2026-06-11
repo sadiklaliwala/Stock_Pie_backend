@@ -7,5 +7,8 @@ namespace Stock_Pie.Application.Interfaces
         Task<Coin?> GetByIdAsync(string id);
         Task AddAsync(Coin coin);
         Task<int> SaveChangesAsync();
+        Task UpdateAsync(Coin coin);
+
+
     }
 }

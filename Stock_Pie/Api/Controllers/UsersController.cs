@@ -59,6 +59,16 @@ namespace Stock_Pie.Api.Controllers
             return Ok(outDto);
         }
 
+        [HttpPut("{id}")]
+        public async Task<ActionResult<UserDto>> UpdateById(Guid id ,UserUpdateDto dto)
+        {
+            var user = await _userService.UpdateUserAsync(id ,dto);
+            //var user = await _mediator.Send(new GetUserByIdQuery(id));
+            if (user == null) return NotFound();
+            var outDto = _mapper.Map<UserDto>(user);
+            return Ok(outDto);
+        }
+
         [HttpGet("by-email")]
         [Authorize]
         public async Task<ActionResult<UserDto>> GetByEmail([FromQuery] string email)

@@ -13,5 +13,8 @@ namespace Stock_Pie.Application.Dto
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public bool IsActive { get; set; }
+
+        // Masked last4 for display; null if not set
+        public string? BankAccountLast4 { get; set; }
     }
 }

@@ -17,7 +17,7 @@ namespace Stock_Pie.Infrastructure.Services
 
         public async Task<Portfolio> UpsertPortfolioForBuyAsync(Guid userId, string symbol, decimal buyQuantity, decimal price)
         {
-            if (buyQuantity >= 0)
+            if (buyQuantity > 0)
             {
 
             var portfolio = await _portfolioRepo.GetByUserAndSymbolAsync(userId, symbol);
@@ -44,17 +44,16 @@ namespace Stock_Pie.Infrastructure.Services
 
             return portfolio;
             }
-            throw new InvalidOperationException("Unsupported operation");
+            throw new ArgumentOutOfRangeException(nameof(buyQuantity), buyQuantity, "Buy quantity must be greater than zero.");
 
         }
 
         public async Task<Portfolio> ApplySellAsync(Guid userId, string symbol, decimal sellQuantity)
         {
             var portfolio = await _portfolioRepo.GetByUserAndSymbolAsync(userId, symbol);
-            if (portfolio == null) throw new InvalidOperationException("No holdings for symbol");
-            if (sellQuantity <= 0) throw new InvalidOperationException("Sell quantity must be positive");
-            if (portfolio.TotalQuantity < sellQuantity) throw new InvalidOperationException("Insufficient quantity to sell");
-
+            if (portfolio == null) throw new KeyNotFoundException($"No holdings found for symbol '{symbol}'.");
+            if (sellQuantity <= 0) throw new ArgumentOutOfRangeException(nameof(sellQuantity), sellQuantity, "Sell quantity must be greater than zero.");
+            if (portfolio.TotalQuantity < sellQuantity) throw new InvalidOperationException("Insufficient quantity to sell.");
             portfolio.TotalQuantity -= sellQuantity;
             if (portfolio.TotalQuantity == 0)
             {
