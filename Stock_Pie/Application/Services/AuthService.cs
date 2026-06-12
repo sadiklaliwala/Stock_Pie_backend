@@ -84,6 +84,7 @@ namespace Stock_Pie.Application.Services
 
         public async Task<(string AccessToken, string RefreshToken)> LoginWithGoogleAsync(string idToken)
         {
+            var isNewUser = false;
             var clientId = _config["Google:ClientId"];
             if (string.IsNullOrEmpty(clientId))
                 throw new InvalidOperationException("Google:ClientId is not configured."); // config issue, not a missing key
@@ -129,6 +130,7 @@ namespace Stock_Pie.Application.Services
                         IsActive = true
                     };
                     await _db.Users.AddAsync(user);
+                    isNewUser = true;
                 }
             }
 
@@ -137,7 +139,7 @@ namespace Stock_Pie.Application.Services
             user.RefreshTokenHash = rtHash;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
             user.LastLoginAt = DateTime.UtcNow;
-            var isNewUser = user.Id == Guid.Empty; // check before SaveChangesAsync
+             // check before SaveChangesAsync
             await _db.SaveChangesAsync();
 
             if (isNewUser)
